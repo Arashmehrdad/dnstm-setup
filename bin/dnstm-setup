@@ -1,0 +1,188 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+PROJECT_ROOT=$(cd -- "${SCRIPT_DIR}/.." && pwd -P)
+
+# shellcheck source=../lib/common.sh
+source "${PROJECT_ROOT}/lib/common.sh"
+# shellcheck source=../lib/ui.sh
+source "${PROJECT_ROOT}/lib/ui.sh"
+# shellcheck source=../lib/deps.sh
+source "${PROJECT_ROOT}/lib/deps.sh"
+# shellcheck source=../lib/firewall.sh
+source "${PROJECT_ROOT}/lib/firewall.sh"
+# shellcheck source=../lib/xray.sh
+source "${PROJECT_ROOT}/lib/xray.sh"
+# shellcheck source=../lib/tunnels.sh
+source "${PROJECT_ROOT}/lib/tunnels.sh"
+
+ADD_DOMAIN_MODE=false
+ADD_DOMAIN_ARG=""
+ADD_XRAY_MODE=false
+HARDEN_ONLY_MODE=false
+UPDATE_MODE=false
+MANAGE_USERS_MODE=false
+DNSTT_MTU=1232
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --help|-h)
+            init_logging
+            trap on_exit_trap EXIT
+            show_help
+            exit 0
+            ;;
+        --about)
+            init_logging
+            trap on_exit_trap EXIT
+            show_about
+            exit 0
+            ;;
+        --version)
+            printf '%s\n' "$VERSION"
+            exit 0
+            ;;
+        --debug)
+            DEBUG_MODE=true
+            shift
+            ;;
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        --log-file)
+            if [[ -z "${2:-}" ]]; then
+                printf 'Error: --log-file requires a path\n' >&2
+                exit 1
+            fi
+            LOG_FILE="$2"
+            shift 2
+            ;;
+        --status)
+            init_logging
+            trap on_exit_trap EXIT
+            do_status
+            exit 0
+            ;;
+        --monitor)
+            init_logging
+            trap on_exit_trap EXIT
+            do_monitor
+            exit 0
+            ;;
+        --manage)
+            init_logging
+            trap on_exit_trap EXIT
+            do_manage
+            exit 0
+            ;;
+        --uninstall)
+            init_logging
+            trap on_exit_trap EXIT
+            do_uninstall
+            exit 0
+            ;;
+        --remove-tunnel)
+            init_logging
+            trap on_exit_trap EXIT
+            if [[ -n "${2:-}" ]] && [[ "${2:0:2}" != "--" ]]; then
+                do_remove_tunnel "$2"
+            else
+                do_remove_tunnel ""
+            fi
+            exit 0
+            ;;
+        --add-tunnel)
+            init_logging
+            trap on_exit_trap EXIT
+            do_add_tunnel
+            exit 0
+            ;;
+        --add-xray)
+            ADD_XRAY_MODE=true
+            shift
+            ;;
+        --add-domain)
+            ADD_DOMAIN_MODE=true
+            if [[ -n "${2:-}" ]] && [[ ! "$2" =~ ^-- ]]; then
+                ADD_DOMAIN_ARG="$2"
+                shift 2
+            else
+                shift
+            fi
+            ;;
+        --users)
+            MANAGE_USERS_MODE=true
+            shift
+            ;;
+        --harden)
+            HARDEN_ONLY_MODE=true
+            shift
+            ;;
+        --update)
+            UPDATE_MODE=true
+            shift
+            ;;
+        --mtu)
+            if [[ -n "${2:-}" ]] && validate_positive_int_range "$2" 512 1400; then
+                DNSTT_MTU="$2"
+                shift 2
+            else
+                printf 'Error: --mtu requires a value between 512 and 1400\n' >&2
+                exit 1
+            fi
+            ;;
+        *)
+            printf 'Unknown option: %s\nUse --help for usage information.\n' "$1" >&2
+            exit 1
+            ;;
+    esac
+done
+
+if [[ -n "${LOG_FILE:-}" ]] && ! validate_log_file "$LOG_FILE"; then
+    printf 'Error: --log-file must be an absolute path or a relative file path\n' >&2
+    exit 1
+fi
+
+init_logging
+trap on_exit_trap EXIT
+
+mode_count=0
+if [[ "$ADD_DOMAIN_MODE" == true ]]; then
+    ((mode_count += 1))
+fi
+if [[ "$ADD_XRAY_MODE" == true ]]; then
+    ((mode_count += 1))
+fi
+if [[ "$HARDEN_ONLY_MODE" == true ]]; then
+    ((mode_count += 1))
+fi
+if [[ "$UPDATE_MODE" == true ]]; then
+    ((mode_count += 1))
+fi
+if [[ "$MANAGE_USERS_MODE" == true ]]; then
+    ((mode_count += 1))
+fi
+if (( mode_count > 1 )); then
+    printf 'Error: --add-domain, --add-xray, --harden, --update, and --users cannot be combined.\n' >&2
+    exit 1
+fi
+
+log_info "Starting ${APP_NAME} ${VERSION}"
+log_info "Runtime flags: debug=${DEBUG_MODE} dry_run=${DRY_RUN} log_file=${LOG_FILE}"
+
+if [[ "$HARDEN_ONLY_MODE" == true ]]; then
+    do_harden
+elif [[ "$UPDATE_MODE" == true ]]; then
+    do_update
+elif [[ "$ADD_DOMAIN_MODE" == true ]]; then
+    do_add_domain
+elif [[ "$ADD_XRAY_MODE" == true ]]; then
+    do_add_xray
+elif [[ "$MANAGE_USERS_MODE" == true ]]; then
+    do_manage_users
+else
+    main
+fi

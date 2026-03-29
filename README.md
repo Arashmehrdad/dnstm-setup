@@ -26,6 +26,7 @@ Deploys [dnstm](https://github.com/net2share/dnstm) DNS tunnel servers with **Sl
 - [🗑️ Uninstall](#️-uninstall)
 - [📖 Manual Setup Guide](#-manual-setup-guide)
 - [🔧 Troubleshooting](#-troubleshooting)
+- [🧪 Development](#-development)
 - [🙏 Acknowledgments](#-acknowledgments)
 - [🔗 Related Projects](#-related-projects)
 - [💖 Donate](#-donate)
@@ -935,6 +936,16 @@ curl --socks5 127.0.0.1:<MICROSOCKS_PORT> https://api.ipify.org
 - For DNSTT, verify the public key matches the one shown during setup
 - Check that port 53 UDP and TCP are open in your hosting provider's firewall panel
 </details>
+
+---
+
+## 🧪 Development
+
+Project maintenance documentation:
+
+- Architecture notes: [docs/architecture.md](docs/architecture.md)
+- Contributor workflow: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Xray backend guide: [docs/xray-backend-guide.md](docs/xray-backend-guide.md)
 
 ---
 
