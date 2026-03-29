@@ -1789,7 +1789,7 @@ step_preflight() {
         cp -f /etc/resolv.conf /etc/resolv.conf.dnstm-backup 2>/dev/null || ignore_failure
     fi
 
-    # Check OS (read in subshell to avoid overwriting script's VERSION variable)
+    # Check OS in a subshell so os-release variables stay isolated from script state.
     if [[ -f /etc/os-release ]]; then
         local os_id os_name
         os_id=$(. /etc/os-release && echo "${ID:-}")
@@ -3397,7 +3397,7 @@ step_summary() {
     echo "    - Harden or uninstall"
     echo ""
 
-    echo -e "  ${DIM}Setup by dnstm-setup v${VERSION} — SamNet Technologies${NC}"
+    echo -e "  ${DIM}Setup by dnstm-setup v${APP_VERSION} — SamNet Technologies${NC}"
     echo -e "  ${DIM}https://github.com/SamNet-dev/dnstm-setup${NC}"
     echo ""
 }

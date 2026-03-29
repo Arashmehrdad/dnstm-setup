@@ -133,7 +133,7 @@ banner() {
     local border empty
     border=$(printf '═%.0s' $(seq 1 $w))
     empty=$(printf ' %.0s' $(seq 1 $w))
-    local ver_text="dnstm-setup v${VERSION}"
+    local ver_text="dnstm-setup v${APP_VERSION}"
     local sub_text="Interactive DNS Tunnel Setup"
     local vl=$(( (w - ${#ver_text}) / 2 ))
     local vr=$(( w - ${#ver_text} - vl ))
@@ -384,7 +384,7 @@ help_topic_about() {
     help_topic_header "About dnstm-setup"
     echo -e "  ${BOLD}Made By SamNet Technologies - Saman${NC}"
     echo ""
-    echo -e "  ${BOLD}dnstm-setup${NC} v${VERSION}"
+    echo -e "  ${BOLD}dnstm-setup${NC} v${APP_VERSION}"
     echo "  Interactive DNS Tunnel Setup Wizard"
     echo ""
     echo "  Automates the complete setup of DNS tunnel servers"

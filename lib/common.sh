@@ -7,7 +7,7 @@ if [[ -n "${DNSTM_COMMON_SH_LOADED:-}" ]]; then
 fi
 readonly DNSTM_COMMON_SH_LOADED=1
 
-readonly VERSION="1.3.1"
+readonly APP_VERSION="1.3.1"
 readonly TOTAL_STEPS=12
 readonly APP_NAME="dnstm-setup"
 readonly DEFAULT_BRANCH="master"

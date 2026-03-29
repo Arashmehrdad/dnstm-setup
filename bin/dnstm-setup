@@ -42,7 +42,7 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         --version)
-            printf '%s\n' "$VERSION"
+            printf '%s\n' "$APP_VERSION"
             exit 0
             ;;
         --debug)
@@ -179,7 +179,7 @@ if (( mode_count > 1 )); then
     exit 1
 fi
 
-log_info "Starting ${APP_NAME} ${VERSION}"
+log_info "Starting ${APP_NAME} ${APP_VERSION}"
 log_info "Runtime flags: debug=${DEBUG_MODE} dry_run=${DRY_RUN} log_file=${LOG_FILE}"
 
 if [[ -n "$CLI_DOMAIN" && ( "$ADD_XRAY_MODE" == true || "$HARDEN_ONLY_MODE" == true || "$UPDATE_MODE" == true || "$MANAGE_USERS_MODE" == true ) ]]; then
