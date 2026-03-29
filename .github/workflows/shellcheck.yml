@@ -1,0 +1,31 @@
+name: Shell Lint
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+jobs:
+  shell-quality:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck shfmt
+
+      - name: Bash syntax check
+        run: |
+          bash -n dnstm-setup.sh bin/dnstm-setup lib/*.sh tests/*.bash tests/*.bats
+
+      - name: Run shfmt
+        run: |
+          shfmt -d -i 4 -ci dnstm-setup.sh bin/dnstm-setup lib/*.sh tests/*.bash tests/*.bats
+
+      - name: Run ShellCheck
+        run: |
+          shellcheck -x dnstm-setup.sh bin/dnstm-setup lib/*.sh tests/*.bash tests/*.bats
