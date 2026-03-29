@@ -16,6 +16,7 @@ readonly DEFAULT_INSTALL_ROOT="/opt/dnstm-setup"
 readonly DEFAULT_INSTALL_LINK="/usr/local/bin/dnstm-setup"
 readonly DEFAULT_COMPAT_LINK="/usr/local/bin/dnstm-setup.sh"
 readonly DEFAULT_STATE_DIR="/var/lib/dnstm-setup"
+readonly DEFAULT_DOMAIN_STATE_BASENAME="domain.env"
 readonly DEFAULT_REPO_ARCHIVE_URL="https://codeload.github.com/SamNet-dev/dnstm-setup/tar.gz/${DEFAULT_BRANCH}"
 
 PROJECT_ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
@@ -201,6 +202,64 @@ validate_domain() {
     [[ "$candidate" =~ ^([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,63}$ ]]
 }
 
+normalize_domain_input() {
+    local candidate="${1:-}"
+
+    candidate="${candidate#"${candidate%%[![:space:]]*}"}"
+    candidate="${candidate%"${candidate##*[![:space:]]}"}"
+    candidate="${candidate#http://}"
+    candidate="${candidate#https://}"
+    candidate="${candidate%%/*}"
+
+    printf '%s\n' "$candidate"
+}
+
+sanitize_domain_for_log() {
+    local candidate="${1:-}"
+    printf '%s\n' "${candidate//[^A-Za-z0-9.-]/?}"
+}
+
+domain_state_file() {
+    printf '%s\n' "${DOMAIN_STATE_FILE:-${STATE_DIR}/${DEFAULT_DOMAIN_STATE_BASENAME}}"
+}
+
+set_tunnel_domain() {
+    local requested_domain="${1:-}"
+    local normalized_domain
+    local sanitized_domain
+    local previous_domain="${DOMAIN}"
+    local state_file
+    local quoted_domain
+
+    normalized_domain=$(normalize_domain_input "$requested_domain")
+    sanitized_domain=$(sanitize_domain_for_log "$normalized_domain")
+    if [[ -z "$normalized_domain" ]] || ! validate_domain "$normalized_domain"; then
+        log_warn "Rejected invalid tunnel domain input: ${sanitized_domain:-<empty>}"
+        return 1
+    fi
+
+    DOMAIN="$normalized_domain"
+    state_file=$(domain_state_file)
+    printf -v quoted_domain '%q' "$normalized_domain"
+
+    ensure_directory "$STATE_DIR" 0755
+    if ! write_file_atomic "$state_file" 0644 <<EOF
+DOMAIN=${quoted_domain}
+EOF
+    then
+        DOMAIN="$previous_domain"
+        log_error "Failed to persist tunnel domain to $(sanitize_domain_for_log "$state_file")"
+        return 1
+    fi
+
+    if [[ "$DRY_RUN" == true ]]; then
+        log_info "DRY-RUN tunnel domain accepted: ${sanitized_domain}"
+    else
+        log_info "Configured tunnel domain: ${sanitized_domain}"
+    fi
+    return 0
+}
+
 validate_port() {
     local candidate="$1"
     [[ "$candidate" =~ ^[0-9]+$ ]] || return 1
@@ -236,6 +295,10 @@ validate_log_file() {
             ;;
     esac
     return 0
+}
+
+has_interactive_tty() {
+    [[ -t 0 || -t 1 ]]
 }
 
 fetch_public_ipv4() {

@@ -1854,18 +1854,19 @@ step_preflight() {
 step_ask_domain() {
     print_step 2 "Domain Configuration"
 
-    while true; do
-        DOMAIN=$(prompt_input "Enter your domain (e.g. example.com)")
-        # Strip whitespace, http(s)://, trailing slashes
-        DOMAIN=$(echo "$DOMAIN" | sed 's|^[[:space:]]*||;s|[[:space:]]*$||;s|^https\?://||;s|/.*$||')
-        if [[ -z "$DOMAIN" ]]; then
-            print_fail "Domain cannot be empty. Please try again."
-        elif ! validate_domain "$DOMAIN"; then
-            print_fail "Invalid domain. Please try again."
-        else
-            break
-        fi
-    done
+    if [[ -z "$DOMAIN" ]]; then
+        while true; do
+            local requested_domain
+            requested_domain=$(prompt_input "Enter your domain (e.g. example.com)")
+            if [[ -z "$(normalize_domain_input "$requested_domain")" ]]; then
+                print_fail "Domain cannot be empty. Please try again."
+            elif ! set_tunnel_domain "$requested_domain"; then
+                print_fail "Invalid domain. Please try again."
+            else
+                break
+            fi
+        done
+    fi
 
     echo ""
     print_ok "Using domain: ${BOLD}${DOMAIN}${NC}"
@@ -3474,33 +3475,38 @@ do_add_domain() {
     existing_domains=$(dnstm tunnel list 2>/dev/null | grep -o 'domain=[^ ]*' | sed 's/domain=//;s/^[a-z0-9]*\.//' | sort -u || ignore_failure)
 
     # Use domain from argument if provided, otherwise prompt
-    if [[ -n "$ADD_DOMAIN_ARG" ]]; then
-        DOMAIN="$ADD_DOMAIN_ARG"
-        DOMAIN=$(echo "$DOMAIN" | sed 's|^[[:space:]]*||;s|[[:space:]]*$||;s|^https\?://||;s|/.*$||')
-        if [[ -z "$DOMAIN" ]] || [[ ! "$DOMAIN" =~ \. ]]; then
-            print_fail "Invalid domain: ${ADD_DOMAIN_ARG}"
+    if [[ -n "$ADD_DOMAIN_ARG" || -n "$DOMAIN" ]]; then
+        local requested_domain="${ADD_DOMAIN_ARG:-$DOMAIN}"
+        local normalized_domain
+        normalized_domain=$(normalize_domain_input "$requested_domain")
+        if [[ -z "$normalized_domain" ]] || ! validate_domain "$normalized_domain"; then
+            print_fail "Invalid domain: ${requested_domain}"
             exit 1
         fi
-        if [[ -n "$existing_domains" ]] && echo "$existing_domains" | grep -qx "$DOMAIN"; then
-            print_fail "Domain '${DOMAIN}' is already in use by an existing tunnel."
+        if [[ -n "$existing_domains" ]] && echo "$existing_domains" | grep -qx "$normalized_domain"; then
+            print_fail "Domain '${normalized_domain}' is already in use by an existing tunnel."
+            exit 1
+        fi
+        if ! set_tunnel_domain "$normalized_domain"; then
+            print_fail "Invalid domain: ${requested_domain}"
             exit 1
         fi
     else
         # Interactive prompt — reopen /dev/tty in case stdin is a pipe
         while true; do
             echo -ne "  ${BOLD}Enter the new backup domain (e.g. backup.com)${NC} ${DIM}(h=help)${NC}: " >&2
-            read -r DOMAIN </dev/tty || { print_fail "Cannot read input (stdin is a pipe). Pass domain as argument: --add-domain example.com"; exit 1; }
-            DOMAIN=$(echo "$DOMAIN" | sed 's|^[[:space:]]*||;s|[[:space:]]*$||;s|^https\?://||;s|/.*$||')
-            if [[ -z "$DOMAIN" ]]; then
+            local requested_domain=""
+            local normalized_domain=""
+            read -r requested_domain </dev/tty || { print_fail "Cannot read input (stdin is a pipe). Pass domain as argument: --add-domain example.com"; exit 1; }
+            normalized_domain=$(normalize_domain_input "$requested_domain")
+            if [[ -z "$normalized_domain" ]]; then
                 print_fail "Domain cannot be empty. Please try again."
-            elif [[ ! "$DOMAIN" =~ \. ]]; then
-                print_fail "Invalid domain (must contain a dot). Please try again."
-            elif [[ "$DOMAIN" =~ \.\. ]]; then
-                print_fail "Invalid domain (consecutive dots not allowed). Please try again."
-            elif [[ ! "$DOMAIN" =~ ^[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?$ ]]; then
-                print_fail "Invalid domain (use only letters, numbers, dots, hyphens). Please try again."
-            elif [[ -n "$existing_domains" ]] && echo "$existing_domains" | grep -qx "$DOMAIN"; then
-                print_fail "Domain '${DOMAIN}' is already in use by an existing tunnel. Please enter a different domain."
+            elif ! validate_domain "$normalized_domain"; then
+                print_fail "Invalid domain. Please try again."
+            elif [[ -n "$existing_domains" ]] && echo "$existing_domains" | grep -qx "$normalized_domain"; then
+                print_fail "Domain '${normalized_domain}' is already in use by an existing tunnel. Please enter a different domain."
+            elif ! set_tunnel_domain "$normalized_domain"; then
+                print_fail "Invalid domain. Please try again."
             else
                 break
             fi

@@ -20,6 +20,7 @@ source "${PROJECT_ROOT}/lib/tunnels.sh"
 
 ADD_DOMAIN_MODE=false
 ADD_DOMAIN_ARG=""
+CLI_DOMAIN=""
 ADD_XRAY_MODE=false
 HARDEN_ONLY_MODE=false
 UPDATE_MODE=false
@@ -51,6 +52,14 @@ while [[ $# -gt 0 ]]; do
         --dry-run)
             DRY_RUN=true
             shift
+            ;;
+        --domain)
+            if [[ -z "${2:-}" ]]; then
+                printf 'Error: --domain requires a domain name\n' >&2
+                exit 1
+            fi
+            CLI_DOMAIN="$2"
+            shift 2
             ;;
         --log-file)
             if [[ -z "${2:-}" ]]; then
@@ -172,6 +181,28 @@ fi
 
 log_info "Starting ${APP_NAME} ${VERSION}"
 log_info "Runtime flags: debug=${DEBUG_MODE} dry_run=${DRY_RUN} log_file=${LOG_FILE}"
+
+if [[ -n "$CLI_DOMAIN" && ( "$ADD_XRAY_MODE" == true || "$HARDEN_ONLY_MODE" == true || "$UPDATE_MODE" == true || "$MANAGE_USERS_MODE" == true ) ]]; then
+    printf 'Error: --domain can only be used with the main setup flow or --add-domain.\n' >&2
+    exit 1
+fi
+
+if [[ -n "$CLI_DOMAIN" && "$ADD_XRAY_MODE" != true && "$HARDEN_ONLY_MODE" != true && "$UPDATE_MODE" != true && "$MANAGE_USERS_MODE" != true ]]; then
+    if ! set_tunnel_domain "$CLI_DOMAIN"; then
+        printf 'Error: --domain must be a valid domain name\n' >&2
+        exit 1
+    fi
+fi
+
+if [[ "$DRY_RUN" == true && -n "$CLI_DOMAIN" && "$ADD_DOMAIN_MODE" != true ]]; then
+    banner
+    echo -e "  ${DIM}Tip: Press 'h' at any prompt for help${NC}"
+    print_step 2 "Domain Configuration"
+    echo ""
+    print_ok "Using domain: ${BOLD}${DOMAIN}${NC}"
+    dry_run_notice "would continue setup using domain ${DOMAIN}"
+    exit 0
+fi
 
 if [[ "$HARDEN_ONLY_MODE" == true ]]; then
     do_harden

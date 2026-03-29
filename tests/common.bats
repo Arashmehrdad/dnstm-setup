@@ -14,6 +14,13 @@ setup() {
     ! validate_domain "bad_domain"
 }
 
+@test "normalize_domain_input strips scheme, path, and surrounding whitespace" {
+    run normalize_domain_input "  https://spaceshipgames.win/path/to/page  "
+
+    [ "$status" -eq 0 ]
+    [ "$output" = "spaceshipgames.win" ]
+}
+
 @test "validate_port enforces numeric range" {
     validate_port "1"
     validate_port "65535"
@@ -55,6 +62,34 @@ EOF
     run cat "$target"
     [ "$status" -eq 0 ]
     [ "$output" = "after" ]
+}
+
+@test "set_tunnel_domain persists validated domain state atomically" {
+    set_tunnel_domain "https://spaceshipgames.win/install"
+
+    [ "$DOMAIN" = "spaceshipgames.win" ]
+    run cat "${STATE_DIR}/domain.env"
+    [ "$status" -eq 0 ]
+    [ "$output" = "DOMAIN=spaceshipgames.win" ]
+}
+
+@test "set_tunnel_domain rejects invalid domains without overwriting state" {
+    set_tunnel_domain "spaceshipgames.win"
+
+    ! set_tunnel_domain "bad_domain"
+    [ "$DOMAIN" = "spaceshipgames.win" ]
+    run cat "${STATE_DIR}/domain.env"
+    [ "$status" -eq 0 ]
+    [ "$output" = "DOMAIN=spaceshipgames.win" ]
+}
+
+@test "set_tunnel_domain respects dry-run mode" {
+    DRY_RUN=true
+
+    set_tunnel_domain "spaceshipgames.win"
+
+    [ "$DOMAIN" = "spaceshipgames.win" ]
+    [ ! -e "${STATE_DIR}/domain.env" ]
 }
 
 @test "write_file_atomic skips rewriting unchanged content" {
@@ -114,4 +149,12 @@ EOF
 
     [ "$status" -eq 0 ]
     [ "$output" = "5" ]
+}
+
+@test "bin/dnstm-setup accepts --domain in dry-run mode" {
+    run env LOG_FILE="/tmp/dnstm-cli-domain-test.log" "${TEST_ROOT}/bin/dnstm-setup" --dry-run --domain spaceshipgames.win
+
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Using domain:"* ]]
+    [[ "$output" == *"spaceshipgames.win"* ]]
 }
