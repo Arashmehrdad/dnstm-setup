@@ -230,7 +230,12 @@ validate_password_no_pipe() {
 validate_log_file() {
     local candidate="$1"
     [[ -n "$candidate" ]] || return 1
-    [[ "$candidate" != *$'\0'* ]]
+    case "$candidate" in
+        *$'\n'*|*$'\r'*)
+            return 1
+            ;;
+    esac
+    return 0
 }
 
 fetch_public_ipv4() {

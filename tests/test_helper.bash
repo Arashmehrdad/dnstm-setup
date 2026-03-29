@@ -6,6 +6,8 @@ TEST_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
 # shellcheck source=../lib/common.sh
 source "${TEST_ROOT}/lib/common.sh"
+# shellcheck source=../lib/ui.sh
+source "${TEST_ROOT}/lib/ui.sh"
 # shellcheck source=../lib/deps.sh
 source "${TEST_ROOT}/lib/deps.sh"
 

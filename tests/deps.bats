@@ -21,6 +21,43 @@ setup() {
     ! binary_matches_checksum "$target" "deadbeef"
 }
 
+@test "detect_architecture maps common machine values" {
+    uname() {
+        printf 'x86_64\n'
+    }
+    run detect_architecture
+    [ "$status" -eq 0 ]
+    [ "$output" = "amd64" ]
+
+    uname() {
+        printf 'armv7l\n'
+    }
+    run detect_architecture
+    [ "$status" -eq 0 ]
+    [ "$output" = "armv7" ]
+}
+
+@test "detect_architecture falls back to amd64 for unknown values" {
+    uname() {
+        printf 'mips64\n'
+    }
+
+    run detect_architecture
+
+    [ "$status" -eq 0 ]
+    [ "${lines[-1]}" = "amd64" ]
+}
+
+@test "download_and_verify is side-effect free in dry-run mode" {
+    target="/tmp/dnstm-download-dry-run-$$"
+    rm -f "$target"
+    DRY_RUN=true
+
+    download_and_verify "https://example.invalid/file" "deadbeef" "$target" "demo-binary"
+
+    [ ! -e "$target" ]
+}
+
 @test "ensure_dnstt_server_binary reports unsupported arch cleanly" {
     ! ensure_dnstt_server_binary "armv7"
 }

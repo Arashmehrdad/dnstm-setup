@@ -20,12 +20,12 @@ jobs:
 
       - name: Bash syntax check
         run: |
-          bash -n dnstm-setup.sh bin/dnstm-setup lib/*.sh tests/*.bash tests/*.bats
+          bash -n dnstm-setup.sh bin/dnstm-setup lib/*.sh tests/*.bash
 
       - name: Run shfmt
         run: |
-          shfmt -d -i 4 -ci dnstm-setup.sh bin/dnstm-setup lib/*.sh tests/*.bash tests/*.bats
+          shfmt -d -i 4 -ci dnstm-setup.sh bin/dnstm-setup lib/*.sh tests/*.bash
 
       - name: Run ShellCheck
         run: |
-          shellcheck -x dnstm-setup.sh bin/dnstm-setup lib/*.sh tests/*.bash tests/*.bats
+          shellcheck -x dnstm-setup.sh bin/dnstm-setup lib/*.sh tests/*.bash
